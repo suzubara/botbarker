@@ -34,5 +34,5 @@ fs.readFile(config, 'utf8', function (err, data)
 	var joinChannels = config.channels;
 	var botName      = config.bot_name;
 
-	var bot = new baseBot.BotBarker(joinServer, joinPort, joinChannels);
+	var bot = new baseBot.BotBarker(joinServer, joinPort, joinChannels, botName);
 });
