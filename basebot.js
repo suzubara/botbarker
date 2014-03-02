@@ -30,7 +30,7 @@ function Bot(server, port, channels, name) {
 
 // BotBarker!
 
-function BotBarker(server, port, channels) {
+function BotBarker(server, port, channels, name) {
 
 	var self = this;
 	self.opt = {
@@ -136,7 +136,7 @@ function BotBarker(server, port, channels) {
 		getProduct();
 	}
 	
-	self.bot = new Bot(server, port, channels, 'BotBarker');
+	self.bot = new Bot(server, port, channels, name);
 	self.bot.initClient();
 	startListening();
 
