@@ -47,14 +47,14 @@ function BotBarker(server, port, channels, name) {
 	};
 
 	var getProduct = function() {
-		console.log('getting product ....');
-		// Fake product fetch
-		setTimeout(function() {
-			self.game.product = fakeProduct;
+		getHtml(url, path, function(html) {
+			self.game.product = getProductDetails(html);
+			console.log('getProduct html' + html);
+			console.log('done getting product');
 			self.bot.client.say(self.opt.channel, "Today we'll be looking at this lovely " + self.game.product.name + "!");
 			self.bot.client.say(self.opt.channel, "Check out the gorgeous details! " + self.game.product.img);
 			takeGuesses();
-		}, 1000);
+		});
 	};
 
 	var validateGuess = function(text) {
@@ -124,7 +124,7 @@ function BotBarker(server, port, channels, name) {
 
 	var startListening = function() {
 		self.bot.client.addListener('message'+self.opt.channel, function(nick, text, msg) {
-			if (text == "Let's play Price is Right" && self.opt.activeGame === false) {
+			if (text == "play" && self.opt.activeGame === false) {
 				self.startGame();
 			}
 		});
@@ -149,13 +149,17 @@ var fakeProduct = {
 	price: '$49.99'
 };
 
+
+var url = 'www.randomamazonproduct.com';
+var path = '/index.php';
+
 function getHtml(url, path, callback)
 {
 	var http = require('http');
 	var options = {
-		host: url
+		host: url,
 		port: 80,
-		path: path // index.php
+		path: path
 	};
 
 	var html = '';
@@ -171,9 +175,10 @@ function getHtml(url, path, callback)
 	});
 }
 
-function getTitleandPrice(html) {
+function getProductDetails(html) {
 	return {
-		title: 'fake',
-		price: '10.24'
+		name: 'ISS',
+		price: '10.24',
+		img: 'http://www.nasa.gov/sites/default/files/styles/360x225/public/budget_cover_no_text_ppt_1.jpg'
 	};
 }
