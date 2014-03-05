@@ -37,12 +37,12 @@ function BotBarker(server, port, channels, name) {
 	self.opt = {
 		channel: channels[0],
 		activeGame: false,
-		maxGuesses: 10, // # guesses before game is ended automatically
-		priceThreshold: 5 // user has to guess within x dollars of actual price
+		guessingTime: 30000, // Amount of time people have to guess
+		warningTime: 10000
 	};
 	self.game = {
 		product: null,
-		numGuesses: 0,
+		guesses: {},
 		winner: false
 	};
 
@@ -79,7 +79,7 @@ function BotBarker(server, port, channels, name) {
 	};
 	
 	var guessListener = function(nick, text, msg) {
-		if (self.opt.activeGame && (self.game.numGuesses <= self.opt.maxGuesses)) {
+		if (self.opt.activeGame) {
 			var guess = validateGuess(text);
 
 			if (guess) {
@@ -89,55 +89,82 @@ function BotBarker(server, port, channels, name) {
 	};
 
 	var takeGuesses = function() {
-		self.bot.client.say(self.opt.channel, "Do I hear any guesses for how much this beauty will set you back?");
+		self.bot.client.say(self.opt.channel, "Do I hear any guesses for how much this beauty will set you back? You have " + (self.opt.guessingTime / 1000) + " seconds to guess!");
 
 		self.bot.client.addListener('message'+self.opt.channel, guessListener);
+		
+		setTimeout(function() {
+			endGameWarning();
+		}, self.opt.guessingTime - self.opt.warningTime);
+	};
+
+	var endGameWarning = function() {
+		self.bot.client.say(self.opt.channel, "Tick tock! Only " + (self.opt.warningTime / 1000) + " seconds left to guess!");	
+		setTimeout(function() {
+			endGame();
+		}, self.opt.warningTime);
 	};
 
 	var handleGuess = function(nick, guess) {
-		console.log('handling guess');
-		self.bot.client.say(self.opt.channel, nick + " is guessing " + guess);
-
-		var intRegex = /\$*\,*/g;
-		var guessInt = parseInt(guess.replace(intRegex, ''));
-		var priceInt = parseInt(self.game.product.price.replace(intRegex, ''));
-		console.log('actual guess: ' + guessInt);
-		console.log('actual price: ' + priceInt);
-
-		if (guessInt > (priceInt + self.opt.priceThreshold)) {
-			self.bot.client.say(self.opt.channel, "A bit too high there! Try again!");
-			self.game.numGuesses++;
-
-			if (self.game.numGuesses > self.opt.maxGuesses) {
-				endGame(false);
+		if (typeof self.game.guesses[nick] == "undefined") {
+			
+			guessOkay = true;
+			for (var alreadyGuessed in self.game.guesses) {
+				if (guess == self.game.guesses[alreadyGuessed]) {
+					guessOkay = false;
+				}
 			}
-		} else if (guessInt < (priceInt - self.opt.priceThreshold)) {
-			self.bot.client.say(self.opt.channel, "Too low, too low! Try again!");
-			self.game.numGuesses++;
-
-			if (self.game.numGuesses > self.opt.maxGuesses) {
-				endGame(false);
+			
+			if (guessOkay) {
+				self.game.guesses[nick] = guess;
+			} else {
+				self.bot.client.say(self.opt.channel, guess + ' has already been guessed, ' + nick + ' you big dummy!');
 			}
+			
 		} else {
-			self.bot.client.say(self.opt.channel, "Close enough!");
-			self.game.winner = nick;
-			endGame(true);
+			self.bot.client.say(self.opt.channel, nick + ' you already guessed you fool!!');
 		}
-
 	};
 
-	var endGame = function(winner) {
-		self.bot.client.removeListener('message'+self.opt.channel, guessListener);
+	var handleResults = function() {
 		
-		if (winner) {
-			self.bot.client.say(self.opt.channel, "The price was " + self.game.product.price + ". Congratulations " + self.game.winner + "! If only I had something to give you.");
+		var intRegex = /\$*\,*/g,
+				priceInt = parseInt(self.game.product.price.replace(intRegex, '')),
+				winnerGuess = 0,
+				winnerNick;
+		
+		for (var nick in self.game.guesses) {
+			self.bot.client.say(self.opt.channel, "Contestant " + nick + " says " + self.game.guesses[nick] + "!");
+			var guessInt = parseInt(self.game.guesses[nick].replace(intRegex, ''));
+			
+			if (guessInt <= priceInt && guessInt > winnerGuess) {
+				winnerGuess = guessInt;
+				winnerNick = nick;
+			}
+		}
+		
+		return winnerNick;
+	};
+
+	var endGame = function() {
+		self.bot.client.removeListener('message'+self.opt.channel, guessListener);
+		self.bot.client.say(self.opt.channel, "Okay, time's up! Let's see...");
+		
+		self.game.winner = handleResults();
+		
+		if (self.game.winner) {
+			self.bot.client.say(self.opt.channel, "The price was " + self.game.product.price + ". Congratulations " + self.game.winner + "! Remember to spay and neuter your pets, kids!");	
 		} else {
-			self.bot.client.say(self.opt.channel, "The price was... " + self.game.product.price + ". You all suck at this!");
+			self.bot.client.say(self.opt.channel, "The price was " + self.game.product.price + ". YOU ALL LOSE! Unneutered pets everywhere hate you.");
 		}
 
+		resetGame();
+	};
+	
+	var resetGame = function() {
 		self.opt.activeGame = false;
 		self.game.product = null;
-		self.game.numGuesses = 0;
+		self.game.guesses = {};
 		self.game.winner = false;
 		startListening();
 	};
