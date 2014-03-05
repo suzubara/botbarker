@@ -1,6 +1,7 @@
 exports.Bot = Bot;
 exports.BotBarker = BotBarker;
 var irc = require('irc');
+var http = require('http');
 
 // Bot base class
 function Bot(server, port, channels, name) {
@@ -147,3 +148,32 @@ var fakeProduct = {
 	img: 'http://ecx.images-amazon.com/images/I/41B2ST8mIgL.jpg',
 	price: '$49.99'
 };
+
+function getHtml(url, path, callback)
+{
+	var http = require('http');
+	var options = {
+		host: url
+		port: 80,
+		path: path // index.php
+	};
+
+	var html = '';
+	http.get(options, function(res) {
+		res.on('data', function(chunk) {
+			html += chunk;
+		});
+		res.on('end', function() {
+			callback(html);
+		});
+	}).on('error', function(e) {
+		console.log("Got error: " + e.message);
+	});
+}
+
+function getTitleandPrice(html) {
+	return {
+		title: 'fake',
+		price: '10.24'
+	};
+}
