@@ -1,6 +1,0 @@
-{
-	"server": "example.com",
-	"port": 6667,
-	"channels": ["#example"],
-	"bot_name": "BotBarker"
-}
