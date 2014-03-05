@@ -77,19 +77,21 @@ function BotBarker(server, port, channels, name) {
 		var priceRegex = /\$[0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?/g;
 		return priceRegex.exec(text);
 	};
+	
+	var guessListener = function(nick, text, msg) {
+		if (self.opt.activeGame && (self.game.numGuesses <= self.opt.maxGuesses)) {
+			var guess = validateGuess(text);
+
+			if (guess) {
+				handleGuess(nick, guess[0]);
+			}
+		}
+	};
 
 	var takeGuesses = function() {
 		self.bot.client.say(self.opt.channel, "Do I hear any guesses for how much this beauty will set you back?");
 
-		self.bot.client.addListener('message'+self.opt.channel, function(nick, text, msg) {
-			if (self.opt.activeGame && (self.game.numGuesses <= self.opt.maxGuesses)) {
-				var guess = validateGuess(text);
-
-				if (guess) {
-					handleGuess(nick, guess[0]);
-				}
-			}
-		});
+		self.bot.client.addListener('message'+self.opt.channel, guessListener);
 	};
 
 	var handleGuess = function(nick, guess) {
@@ -125,6 +127,8 @@ function BotBarker(server, port, channels, name) {
 	};
 
 	var endGame = function(winner) {
+		self.bot.client.removeListener('message'+self.opt.channel, guessListener);
+		
 		if (winner) {
 			self.bot.client.say(self.opt.channel, "The price was " + self.game.product.price + ". Congratulations " + self.game.winner + "! If only I had something to give you.");
 		} else {
@@ -138,17 +142,20 @@ function BotBarker(server, port, channels, name) {
 		startListening();
 	};
 
+	var gameListener = function(nick, text, msg) {
+		if (text == "botbarker, let's play the price is right" && self.opt.activeGame === false) {
+			self.startGame();
+		}
+	};
+
 	var startListening = function() {
-		self.bot.client.addListener('message'+self.opt.channel, function(nick, text, msg) {
-			if (text == "hey bot, let's play the price is right" && self.opt.activeGame === false) {
-				self.startGame();
-			}
-		});
+		self.bot.client.addListener('message'+self.opt.channel, gameListener);
 	};
 
 	this.startGame = function() {
 		console.log('start game');
 		self.opt.activeGame = true;
+		self.bot.client.removeListener('message'+self.opt.channel, gameListener);
 		self.bot.client.say(self.opt.channel, "Okay, let's play Price is Right!");
 		getProduct();
 	}
