@@ -47,13 +47,29 @@ function BotBarker(server, port, channels, name) {
 	};
 
 	var getProduct = function() {
-		getHtml(url, path, function(html) {
+		getHtml(random_amzn_url, random_amzn_path, function(html) {
 			self.game.product = getProductDetails(html);
-			console.log('getProduct html' + html);
-			console.log('done getting product');
-			self.bot.client.say(self.opt.channel, "Today we'll be looking at this lovely " + self.game.product.name + "!");
-			self.bot.client.say(self.opt.channel, "Check out the gorgeous details! " + self.game.product.img);
-			takeGuesses();
+			if (self.game.product == -1)
+			{
+				self.opt.activeGame = false;
+				self.bot.client.say(self.opt.channel, "Whoops.. try again");
+			}
+
+			getHtml('www.amazon.com', self.game.product.path, function(html) {
+				self.game.product.price = getPrice(html);
+
+				if (self.game.product.price == -1)
+				{
+					self.opt.activeGame = false;
+					self.bot.client.say(self.opt.channel, "Whoops.. try again");
+				}
+				else
+				{
+					self.bot.client.say(self.opt.channel, "Today we'll be looking at this lovely " + self.game.product.name + "!");
+					self.bot.client.say(self.opt.channel, "Check out the gorgeous details! " + self.game.product.img);
+					takeGuesses();
+				}
+			});
 		});
 	};
 
@@ -124,7 +140,7 @@ function BotBarker(server, port, channels, name) {
 
 	var startListening = function() {
 		self.bot.client.addListener('message'+self.opt.channel, function(nick, text, msg) {
-			if (text == "play" && self.opt.activeGame === false) {
+			if (text == "hey bot, let's play the price is right" && self.opt.activeGame === false) {
 				self.startGame();
 			}
 		});
@@ -150,8 +166,8 @@ var fakeProduct = {
 };
 
 
-var url = 'www.randomamazonproduct.com';
-var path = '/index.php';
+var random_amzn_url = 'www.randomamazonproduct.com';
+var random_amzn_path = '/index.php';
 
 function getHtml(url, path, callback)
 {
@@ -176,9 +192,45 @@ function getHtml(url, path, callback)
 }
 
 function getProductDetails(html) {
+	var amzn_img = /"amazon-image" src="(http\:\/\/.*)"/.exec(html);
+	if (!amzn_img)
+	{
+		return -1;
+	}
+	amzn_img = amzn_img[1];
+
+	var amzn_title = /"amazon-title">(.*?)</.exec(html);
+	if (!amzn_title)
+	{
+		return -1;
+	}
+	amzn_title = amzn_title[1];
+
+	var amzn_path = /href=\"http:\/\/www.amazon.com(\/.*?)\" class=\"outlink\"/.exec(html);
+	if (!amzn_path)
+	{
+		return -1;
+	}
+	amzn_path = amzn_path[1];
+
+	console.log('http://www.amazon.com/' + amzn_path);
+
 	return {
-		name: 'ISS',
-		price: '10.24',
-		img: 'http://www.nasa.gov/sites/default/files/styles/360x225/public/budget_cover_no_text_ppt_1.jpg'
+		name: amzn_title,
+		img: amzn_img,
+		path: amzn_path
 	};
+}
+
+function getPrice(html) {
+	var match = /\$(\d+\.\d\d)/.exec(html);
+	if (match)
+	{
+		return match[1];
+	}
+	else
+	{
+		console.log('price failed!');
+		return -1;
+	}
 }
